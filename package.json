@@ -1,7 +1,7 @@
 {
   "name": "x-mcp",
   "version": "1.0.0",
-  "description": "Minimal MCP server for X's (Twitter's) official API v2 - handles OAuth2 refresh (X access tokens expire in ~2h, refresh tokens rotate on every use).",
+  "description": "Minimal MCP server for X's official API v2 - self-refreshing OAuth2, no scraping",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -17,5 +17,17 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0"
-  }
+  },
+  "author": "Nathan Graves",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/N-Graves/x-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "twitter",
+    "x",
+    "model-context-protocol"
+  ]
 }
