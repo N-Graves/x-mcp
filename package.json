@@ -1,0 +1,21 @@
+{
+  "name": "x-mcp",
+  "version": "1.0.0",
+  "description": "Minimal MCP server for X's (Twitter's) official API v2 - handles OAuth2 refresh (X access tokens expire in ~2h, refresh tokens rotate on every use).",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "x-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc && chmod +x dist/index.js",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
