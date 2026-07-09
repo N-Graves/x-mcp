@@ -4,6 +4,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { CredentialsStore } from "./credentials-store.js";
 import { XClient } from "./x-client.js";
+import { requireCapability } from "./agent-capability.js";
+
+const REQUIRED_CAPABILITY = "social"; // ECHO owns social posting
 
 const CREDENTIALS_FILE = process.env.X_CREDENTIALS_FILE;
 if (!CREDENTIALS_FILE) {
@@ -24,13 +27,15 @@ const tools: Tool[] = [
     name: "x_create_tweet",
     description:
       "Post a real, immediately-live tweet. There is no draft/undo - only call this after the content " +
-      "has already been approved through the fleet board's HITL review, never before.",
+      "has already been approved through the fleet board's HITL review, never before. Requires agent_id " +
+      "(must hold the 'social' capability, e.g. echo).",
     inputSchema: {
       type: "object",
       properties: {
+        agent_id: { type: "string", description: "Your fleet-board agent id, e.g. 'echo'" },
         text: { type: "string", description: "The tweet text (280 char limit enforced by X)" },
       },
-      required: ["text"],
+      required: ["agent_id", "text"],
     },
   },
 ];
@@ -48,6 +53,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       result = await client.getMe();
       break;
     case "x_create_tweet":
+      await requireCapability(args.agent_id as string | undefined, REQUIRED_CAPABILITY);
       result = await client.createTweet(args.text as string);
       break;
     default:
