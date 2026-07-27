@@ -222,14 +222,27 @@ export class XClient {
    * Posts a real, immediately-live tweet. No draft state, no undo.
    * `mediaIds` attaches already-uploaded media (see uploadMedia); X allows up
    * to 4 images per tweet.
+   *
+   * `inReplyToTweetId` makes this a reply rather than a standalone post. That
+   * is how an outbound link is supposed to reach an X audience: X reduces
+   * distribution on posts carrying an external URL in the body, so the post
+   * itself stays link-free and the link goes in a self-reply. Replying to our
+   * own tweet id is the normal case here, not an edge case.
    */
-  async createTweet(text: string, mediaIds?: string[]): Promise<unknown> {
+  async createTweet(
+    text: string,
+    mediaIds?: string[],
+    inReplyToTweetId?: string,
+  ): Promise<unknown> {
     const body: Record<string, unknown> = { text };
     if (mediaIds && mediaIds.length > 0) {
       if (mediaIds.length > 4) {
         throw new Error(`X allows at most 4 images per tweet, got ${mediaIds.length}`);
       }
       body.media = { media_ids: mediaIds };
+    }
+    if (inReplyToTweetId) {
+      body.reply = { in_reply_to_tweet_id: inReplyToTweetId };
     }
     const res = await this.authedFetch("/tweets", {
       method: "POST",

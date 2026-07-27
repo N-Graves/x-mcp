@@ -29,7 +29,10 @@ const tools: Tool[] = [
       "Post a real, immediately-live tweet. There is no draft/undo - only call this after the content " +
       "has already been approved through the fleet board's HITL review, never before. Requires agent_id " +
       "(must hold the 'social' capability, e.g. echo). Pass image_paths to attach up to 4 images - they " +
-      "are uploaded to X first, so give local file paths (e.g. a MUSE render), NOT public URLs.",
+      "are uploaded to X first, so give local file paths (e.g. a MUSE render), NOT public URLs. " +
+      "Pass in_reply_to_tweet_id to post a reply - that is how a product link reaches an audience " +
+      "here: X cuts distribution on posts with an external URL in the body, so post the tweet " +
+      "link-free, then call this again with the returned tweet id and the link.",
     inputSchema: {
       type: "object",
       properties: {
@@ -41,6 +44,12 @@ const tools: Tool[] = [
           description:
             "Up to 4 local image file paths (png/jpg/gif/webp, max 5MB each) to attach. " +
             "Uploaded to X before the tweet is posted.",
+        },
+        in_reply_to_tweet_id: {
+          type: "string",
+          description:
+            "Reply to this tweet id instead of posting standalone. Use our own tweet's id " +
+            "(from this tool's own response, data.id) to put the link in a self-reply.",
         },
       },
       required: ["agent_id", "text"],
@@ -115,7 +124,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       for (const p of paths) {
         mediaIds.push(await client.uploadMedia(p));
       }
-      result = await client.createTweet(args.text as string, mediaIds);
+      result = await client.createTweet(
+        args.text as string,
+        mediaIds,
+        args.in_reply_to_tweet_id as string | undefined,
+      );
       break;
     }
     case "x_upload_media":
