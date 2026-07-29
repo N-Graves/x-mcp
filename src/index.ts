@@ -4,9 +4,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { CredentialsStore } from "./credentials-store.js";
 import { XClient } from "./x-client.js";
-import { requireCapability } from "./agent-capability.js";
+import { requireCapability, CapabilityError } from "./agent-capability.js";
+import { requireBrand, BrandError } from "./brand-gate.js";
 
 const REQUIRED_CAPABILITY = "social"; // ECHO owns social posting
+// This server publishes for NAS DIGITAL only - see brand-gate.ts. With Nate work goes to Instagram/Facebook/Threads instead.
+const SERVER_BRAND = "nas_digital";
 
 const CREDENTIALS_FILE = process.env.X_CREDENTIALS_FILE;
 if (!CREDENTIALS_FILE) {
@@ -37,6 +40,12 @@ const tools: Tool[] = [
       type: "object",
       properties: {
         agent_id: { type: "string", description: "Your fleet-board agent id, e.g. 'echo'" },
+        task_id: {
+          type: "string",
+          description:
+            "The board task this belongs to. This is a NAS DIGITAL channel - the task's "
+            + "brand must be nas_digital, or it is refused. With Nate work goes to Instagram/Facebook/Threads instead.",
+        },
         text: { type: "string", description: "The tweet text (280 char limit enforced by X)" },
         image_paths: {
           type: "array",
@@ -52,7 +61,7 @@ const tools: Tool[] = [
             "(from this tool's own response, data.id) to put the link in a self-reply.",
         },
       },
-      required: ["agent_id", "text"],
+      required: ["agent_id", "task_id", "text"],
     },
   },
   {
@@ -110,12 +119,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args = {} } = request.params;
   let result: unknown;
 
-  switch (name) {
+  try {
+    switch (name) {
     case "x_get_me":
       result = await client.getMe();
       break;
     case "x_create_tweet": {
       await requireCapability(args.agent_id as string | undefined, REQUIRED_CAPABILITY);
+      await requireBrand(args.task_id as string | undefined, SERVER_BRAND);
       const paths = (args.image_paths as string[] | undefined) ?? [];
       // Upload first so a bad/oversized image fails BEFORE anything goes live -
       // a tweet cannot be edited, only deleted, so a half-successful post with
@@ -144,6 +155,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       break;
     default:
       throw new Error(`Unknown tool: ${name}`);
+  }
+  } catch (err) {
+    // A gate rejection is a real answer to the caller, not a crash. Thrown, it
+    // surfaced as an opaque transport error and the agent could not tell a
+    // refusal from an outage - so it retried. Returned as isError, the reason
+    // is readable and actionable.
+    if (err instanceof BrandError || err instanceof CapabilityError) {
+      return { content: [{ type: "text", text: err.message }], isError: true };
+    }
+    throw err;
   }
 
   return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
